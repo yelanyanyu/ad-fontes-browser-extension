@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "zip": "tar -a -c -f ad-fontes-extension.zip -C dist ."
   },
   "devDependencies": {
     "vite": "^5.4.21"

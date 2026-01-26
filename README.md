@@ -1,6 +1,8 @@
 # Ad Fontes 浏览器插件
 
-一个帮助你生成结构化单词卡的词汇构建插件，包含释义、上下文和音标。
+一个帮助你生成结构化单词卡的词汇构建插件，包含释义、上下文和音标。该插件主要与 [ad-fontes-prompts](https://github.com/yelanyanyu/ad-fontes-prompts) 项目配合使用。
+
+该项目提供提示词，这些提示词将与那些 prompts 配合使用，从而生成符合要求的单词卡。
 
 ## ✨ 功能特性
 
