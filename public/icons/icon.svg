@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Background Circle -->
+  <circle cx="512" cy="512" r="512" fill="#1e2156"/>
+  
+  <!-- Open Book -->
+  <path d="M200 600 Q350 600 512 700 Q674 600 824 600 L874 800 Q674 800 512 900 Q350 800 150 800 Z" fill="#ffffff" stroke="#4a55a2" stroke-width="20"/>
+  <path d="M512 700 L512 900" stroke="#4a55a2" stroke-width="20"/>
+  
+  <!-- Tree Roots/Letter A -->
+  <path d="M512 400 L400 650 Q350 700 300 650 M512 400 L624 650 Q674 700 724 650" stroke="#7a9e7e" stroke-width="40" fill="none" stroke-linecap="round"/>
+  <path d="M450 550 L574 550" stroke="#7a9e7e" stroke-width="40" stroke-linecap="round"/>
+  
+  <!-- Magnifying Glass -->
+  <circle cx="550" cy="350" r="180" fill="#ffffff" stroke="#7a9e7e" stroke-width="40"/>
+  <path d="M680 480 L800 600" stroke="#7a9e7e" stroke-width="60" stroke-linecap="round"/>
+  
+  <!-- Reflection on Glass -->
+  <path d="M480 280 Q550 220 620 280" stroke="#1e2156" stroke-width="20" fill="none" stroke-linecap="round"/>
+</svg>

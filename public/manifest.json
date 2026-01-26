@@ -6,6 +6,16 @@
   "permissions": ["activeTab", "clipboardWrite", "storage"],
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "Ad Fontes"
+    "default_title": "Ad Fontes",
+    "default_icon": {
+      "16": "icons/icon.svg",
+      "48": "icons/icon.svg",
+      "128": "icons/icon.svg"
+    }
+  },
+  "icons": {
+    "16": "icons/icon.svg",
+    "48": "icons/icon.svg",
+    "128": "icons/icon.svg"
   }
 }

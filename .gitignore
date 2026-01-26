@@ -125,3 +125,6 @@ Thumbs.db
 
 # Scripts
 package-extension.bat
+
+# Trae
+.trae/documents
