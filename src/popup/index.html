@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ad Fontes</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Ad Fontes</h1>
+      <p class="subtitle">Vocabulary Builder</p>
+    </header>
+    
+    <main>
+      <div class="input-group">
+        <label for="word">Word</label>
+        <input type="text" id="word" placeholder="Enter a word (e.g., took)" autofocus autocomplete="off">
+      </div>
+      
+      <div class="input-group">
+        <label for="context">Context</label>
+        <textarea id="context" rows="3" placeholder="Paste the sentence where you found the word..."></textarea>
+      </div>
+      
+      <div class="input-group">
+        <label for="other">Notes</label>
+        <textarea id="other" rows="2" placeholder="Any additional thoughts or tags..."></textarea>
+      </div>
+      
+      <div class="actions">
+        <button id="generateBtn" class="btn primary">
+          <span class="btn-text">Generate & Copy</span>
+          <span class="loader hidden"></span>
+        </button>
+        <button id="copyBtn" class="btn secondary" disabled>
+          Copy Manually
+        </button>
+      </div>
+
+      <div id="status" class="status hidden"></div>
+      
+      <div id="preview-container" class="input-group hidden">
+        <label for="preview">Preview</label>
+        <textarea id="preview" readonly></textarea>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

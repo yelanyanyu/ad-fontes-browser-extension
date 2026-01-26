@@ -1,0 +1,1 @@
+1. 遵循 browser-extension-builder
