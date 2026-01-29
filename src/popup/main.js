@@ -24,6 +24,22 @@ let lastGeneratedText = '';
 let currentDomain = '';
 let prompts = [];
 let siteConfigs = {};
+let lastActivePromptId = null;
+
+const KNOWN_SITE_DEFAULTS = {
+  'gemini.google.com': true,
+  'chatgpt.com': true,
+  'claude.ai': true,
+  'aistudio.google.com': false
+};
+
+function resolveConfig(domain) {
+  if (siteConfigs[domain]) return siteConfigs[domain];
+  return {
+    enabled: KNOWN_SITE_DEFAULTS[domain] ?? false,
+    promptId: lastActivePromptId
+  };
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -56,12 +72,19 @@ async function initializeContext() {
 }
 
 async function loadSiteConfig() {
-  const data = await chrome.storage.local.get(['prompts', 'siteConfigs']);
+  const data = await chrome.storage.local.get(['prompts', 'siteConfigs', 'lastActivePromptId']);
   prompts = data.prompts || [];
   siteConfigs = data.siteConfigs || {};
+  lastActivePromptId = data.lastActivePromptId || null;
+  
+  // Validate lastActivePromptId
+  if (lastActivePromptId && !prompts.find(p => p.id === lastActivePromptId)) {
+    lastActivePromptId = null;
+  }
   
   const elements = getElements();
-  const config = siteConfigs[currentDomain] || { enabled: false, promptId: null };
+  
+  const config = resolveConfig(currentDomain);
   
   // Populate Select
   elements.promptSelect.innerHTML = '<option value="">Select a prompt...</option>';
@@ -96,7 +119,13 @@ async function saveSiteConfig() {
   const promptId = elements.promptSelect.value;
   
   siteConfigs[currentDomain] = { enabled, promptId };
-  await chrome.storage.local.set({ siteConfigs });
+  
+  // Update global last used
+  if (promptId) {
+    lastActivePromptId = promptId;
+  }
+  
+  await chrome.storage.local.set({ siteConfigs, lastActivePromptId });
   updatePromptUI(enabled);
 }
 
@@ -187,7 +216,7 @@ async function handleGenerate() {
     let formattedText = formatOutput(lemma, context, definitions, other);
     
     // 4. Prepend System Prompt if Enabled
-    const config = siteConfigs[currentDomain];
+    const config = resolveConfig(currentDomain);
     if (config && config.enabled && config.promptId) {
       const prompt = prompts.find(p => p.id === config.promptId);
       if (prompt && prompt.content) {

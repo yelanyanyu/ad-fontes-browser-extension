@@ -70,6 +70,11 @@ body {
   color: var(--text-primary);
 }
 
+.icon-btn.danger:hover {
+  background: #fee2e2;
+  color: var(--danger-color);
+}
+
 .prompt-list {
   flex: 1;
   overflow-y: auto;
@@ -115,10 +120,20 @@ body {
   padding: 1rem;
   border-top: 1px solid var(--border-color);
   background: #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  max-height: 40%;
+}
+
+.sidebar-footer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
 }
 
 .sidebar-footer h3 {
-  margin: 0 0 0.5rem 0;
+  margin: 0;
   font-size: 0.8rem;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -126,16 +141,48 @@ body {
 }
 
 .site-rules-list {
-  max-height: 150px;
+  flex: 1;
   overflow-y: auto;
   font-size: 0.85rem;
+  margin: 0 -1rem; /* Negative margin to span full width */
+  padding: 0 1rem;
 }
 
 .site-rule-item {
   display: flex;
   justify-content: space-between;
-  padding: 4px 0;
+  align-items: center;
+  padding: 8px 0;
   color: var(--text-secondary);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.site-rule-item:last-child {
+  border-bottom: none;
+}
+
+.site-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.site-domain {
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.site-status {
+  font-size: 0.7rem;
+}
+
+.site-actions {
+  display: flex;
+  gap: 4px;
 }
 
 /* Main Content */

@@ -7,6 +7,7 @@ let currentPromptId = null;
 const els = {
   promptList: document.getElementById('prompt-list'),
   siteRulesList: document.getElementById('site-rules-list'),
+  clearSitesBtn: document.getElementById('clear-sites-btn'),
   editorContainer: document.getElementById('editor-container'),
   emptyState: document.getElementById('editor-empty-state'),
   titleInput: document.getElementById('prompt-title'),
@@ -33,7 +34,6 @@ async function loadData() {
 
 async function saveData() {
   await chrome.storage.local.set({ prompts, siteConfigs });
-  // Notify user?
 }
 
 // Rendering
@@ -54,14 +54,43 @@ function renderPrompts() {
 
 function renderSiteRules() {
   els.siteRulesList.innerHTML = '';
-  Object.entries(siteConfigs).forEach(([domain, config]) => {
+  const domains = Object.keys(siteConfigs);
+  
+  if (els.clearSitesBtn) {
+    els.clearSitesBtn.style.display = domains.length > 0 ? 'flex' : 'none';
+  }
+
+  if (domains.length === 0) {
+    els.siteRulesList.innerHTML = '<div style="padding:10px; text-align:center; color:#9ca3af; font-size:0.8rem;">No site rules yet</div>';
+    return;
+  }
+
+  domains.sort().forEach(domain => {
+    const config = siteConfigs[domain];
     const item = document.createElement('div');
     item.className = 'site-rule-item';
-    const status = config.enabled ? 'ON' : 'OFF';
+    
     item.innerHTML = `
-      <span>${domain}</span>
-      <span style="font-weight:bold; color: ${config.enabled ? '#2563eb' : '#9ca3af'}">${status}</span>
+      <div class="site-info">
+        <div class="site-domain" title="${escapeHtml(domain)}">${escapeHtml(domain)}</div>
+        <div class="site-status ${config.enabled ? 'on' : ''}">${config.enabled ? 'ON' : 'OFF'}</div>
+      </div>
+      <div class="site-actions">
+        <button class="icon-btn danger delete-rule-btn" title="Delete Rule">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
     `;
+    
+    const deleteBtn = item.querySelector('.delete-rule-btn');
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      deleteSiteRule(domain);
+    };
+
     els.siteRulesList.appendChild(item);
   });
 }
@@ -122,14 +151,31 @@ async function saveCurrentPrompt() {
   }
 }
 
+async function deleteSiteRule(domain) {
+  if (confirm(`Forget settings for ${domain}?`)) {
+    delete siteConfigs[domain];
+    await saveData();
+    renderSiteRules();
+  }
+}
+
 // Listeners
 function setupListeners() {
   els.addBtn.addEventListener('click', createPrompt);
   els.deleteBtn.addEventListener('click', deleteCurrentPrompt);
   els.saveBtn.addEventListener('click', saveCurrentPrompt);
   
-  // Auto-save on blur or periodic? Stick to manual save for now to avoid accidental overwrites of complex prompts
-  // But Cmd+S override would be nice
+  if (els.clearSitesBtn) {
+    els.clearSitesBtn.addEventListener('click', async () => {
+      if (confirm('Clear ALL website settings? This action cannot be undone.')) {
+        siteConfigs = {};
+        await saveData();
+        renderSiteRules();
+      }
+    });
+  }
+  
+  // Shortcut
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
       e.preventDefault();
