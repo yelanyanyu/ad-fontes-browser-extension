@@ -11,17 +11,94 @@ const getElements = () => ({
   loader: document.querySelector('.loader'),
   btnText: document.querySelector('.btn-text'),
   previewContainer: document.getElementById('preview-container'),
-  preview: document.getElementById('preview')
+  preview: document.getElementById('preview'),
+  // New Elements
+  domainLabel: document.getElementById('current-domain'),
+  promptToggle: document.getElementById('prompt-toggle'),
+  promptSelect: document.getElementById('prompt-select'),
+  promptSelectionArea: document.getElementById('prompt-selection-area'),
+  openOptionsBtn: document.getElementById('open-options-btn')
 });
 
 let lastGeneratedText = '';
+let currentDomain = '';
+let prompts = [];
+let siteConfigs = {};
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   console.log('Ad Fontes: Extension loaded');
-  loadFromStorage();
+  await initializeContext();
+  await loadFromStorage();
   setupEventListeners();
 });
+
+async function initializeContext() {
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs[0] && tabs[0].url) {
+      const url = new URL(tabs[0].url);
+      currentDomain = url.hostname;
+      const elements = getElements();
+      if (elements.domainLabel) {
+        elements.domainLabel.textContent = currentDomain;
+        elements.domainLabel.title = currentDomain; // Tooltip for long domains
+      }
+      
+      // Load config for this domain
+      await loadSiteConfig();
+    }
+  } catch (e) {
+    console.error('Failed to get current tab:', e);
+    const elements = getElements();
+    if (elements.domainLabel) elements.domainLabel.textContent = 'Unknown Site';
+  }
+}
+
+async function loadSiteConfig() {
+  const data = await chrome.storage.local.get(['prompts', 'siteConfigs']);
+  prompts = data.prompts || [];
+  siteConfigs = data.siteConfigs || {};
+  
+  const elements = getElements();
+  const config = siteConfigs[currentDomain] || { enabled: false, promptId: null };
+  
+  // Populate Select
+  elements.promptSelect.innerHTML = '<option value="">Select a prompt...</option>';
+  prompts.forEach(p => {
+    const option = document.createElement('option');
+    option.value = p.id;
+    option.textContent = p.title || 'Untitled';
+    elements.promptSelect.appendChild(option);
+  });
+  
+  // Set State
+  elements.promptToggle.checked = config.enabled;
+  if (config.promptId) {
+    elements.promptSelect.value = config.promptId;
+  }
+  
+  updatePromptUI(config.enabled);
+}
+
+function updatePromptUI(enabled) {
+  const elements = getElements();
+  if (enabled) {
+    elements.promptSelectionArea.classList.remove('hidden');
+  } else {
+    elements.promptSelectionArea.classList.add('hidden');
+  }
+}
+
+async function saveSiteConfig() {
+  const elements = getElements();
+  const enabled = elements.promptToggle.checked;
+  const promptId = elements.promptSelect.value;
+  
+  siteConfigs[currentDomain] = { enabled, promptId };
+  await chrome.storage.local.set({ siteConfigs });
+  updatePromptUI(enabled);
+}
 
 function setupEventListeners() {
   const elements = getElements();
@@ -44,6 +121,17 @@ function setupEventListeners() {
     elements.context.addEventListener(event, debouncedSave);
     elements.other.addEventListener(event, debouncedSave);
   });
+  
+  // New Listeners
+  elements.promptToggle.addEventListener('change', saveSiteConfig);
+  elements.promptSelect.addEventListener('change', saveSiteConfig);
+  elements.openOptionsBtn.addEventListener('click', () => {
+    if (chrome.runtime.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
+    } else {
+      window.open(chrome.runtime.getURL('src/options/index.html'));
+    }
+  });
 }
 
 // Storage Functions
@@ -51,7 +139,6 @@ async function loadFromStorage() {
   try {
     const elements = getElements();
     const data = await chrome.storage.local.get(['word', 'context', 'other']);
-    console.log('【DEBUG】Loaded from storage:', data);
     
     if (data.word) elements.word.value = data.word;
     if (data.context) elements.context.value = data.context;
@@ -69,10 +156,7 @@ function saveToStorage() {
     other: elements.other.value
   };
   
-  console.log('【DEBUG】Saving to storage:', data);
-  chrome.storage.local.set(data).then(() => {
-     console.log('Ad Fontes: Saved to storage');
-  }).catch(err => {
+  chrome.storage.local.set(data).catch(err => {
     console.error('Ad Fontes: Failed to save to storage:', err);
   });
 }
@@ -97,19 +181,27 @@ async function handleGenerate() {
     console.log(`【DEBUG】NLP Result - Original: "${word}", Lemma: "${lemma}"`);
 
     // 2. Fetch Data from Dictionary API
-    // Use lemma for lookup
     const definitions = await fetchDefinitions(lemma);
     
     // 3. Format Data
-    // Use lemma in output as requested
-    const formattedText = formatOutput(lemma, context, definitions, other);
+    let formattedText = formatOutput(lemma, context, definitions, other);
+    
+    // 4. Prepend System Prompt if Enabled
+    const config = siteConfigs[currentDomain];
+    if (config && config.enabled && config.promptId) {
+      const prompt = prompts.find(p => p.id === config.promptId);
+      if (prompt && prompt.content) {
+        formattedText = `${prompt.content}\n\n${formattedText}`;
+      }
+    }
+
     lastGeneratedText = formattedText;
 
-    // 4. Update Preview
+    // 5. Update Preview
     elements.preview.value = formattedText;
     elements.previewContainer.classList.remove('hidden');
 
-    // 5. Copy to Clipboard
+    // 6. Copy to Clipboard
     await copyToClipboard(formattedText);
     
     showStatus('Copied to clipboard!', 'success');
@@ -138,12 +230,8 @@ function getLemma(text) {
     doc.compute('root');
     const json = doc.json();
     
-    // Detailed log for debugging internal NLP state
-    console.log('【DEBUG】NLP Internal State:', JSON.stringify(json, null, 2));
-    
     if (json && json[0] && json[0].terms && json[0].terms[0]) {
       const term = json[0].terms[0];
-      // Prioritize root, then normal, then text
       return term.root || term.normal || text;
     }
     return text;
@@ -156,8 +244,6 @@ function getLemma(text) {
 async function fetchDefinitions(word) {
   try {
     const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-    console.log(`【DEBUG】Fetching URL: ${url}`);
-    
     const response = await fetch(url);
     
     if (!response.ok) {
@@ -167,9 +253,7 @@ async function fetchDefinitions(word) {
       throw new Error(`API Error: ${response.statusText}`);
     }
     
-    const data = await response.json();
-    console.log('【DEBUG】API Response:', data);
-    return data;
+    return await response.json();
   } catch (error) {
     throw error;
   }

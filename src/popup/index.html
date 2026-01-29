@@ -7,6 +7,25 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <header class="site-context-bar" id="site-context-bar">
+    <div class="site-info-row">
+      <div class="site-identity">
+        <span class="site-icon">🌐</span>
+        <span class="site-domain" id="current-domain">...</span>
+      </div>
+      <label class="toggle-switch" title="Enable System Prompt">
+        <input type="checkbox" id="prompt-toggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="prompt-selection hidden" id="prompt-selection-area">
+      <select id="prompt-select" class="prompt-select">
+        <option value="">Select a prompt...</option>
+      </select>
+      <button id="open-options-btn" class="icon-btn-small" title="Manage Prompts">⚙️</button>
+    </div>
+  </header>
+
   <div class="container">
     <header>
       <h1>Ad Fontes</h1>
