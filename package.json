@@ -1,10 +1,12 @@
 {
   "name": "ad-fontes-browser-extension",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Vocabulary card generator extension",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "bump": "node scripts/bump-version.js",
+    "set-version": "node scripts/set-version.js",
     "preview": "vite preview",
     "zip": "tar -a -c -f ad-fontes-extension.zip -C dist ."
   },
