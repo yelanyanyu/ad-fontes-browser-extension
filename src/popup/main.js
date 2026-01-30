@@ -209,11 +209,16 @@ async function handleGenerate() {
     const lemma = getLemma(word);
     console.log(`【DEBUG】NLP Result - Original: "${word}", Lemma: "${lemma}"`);
 
-    // 2. Fetch Data from Dictionary API
-    const definitions = await fetchDefinitions(lemma);
-    
-    // 3. Format Data
-    let formattedText = formatOutput(lemma, context, definitions, other);
+    let formattedText = '';
+    let dictFailed = false;
+    try {
+      const definitions = await fetchDefinitions(lemma);
+      formattedText = formatOutput(lemma, context, definitions, other);
+    } catch (dictErr) {
+      console.warn('Dictionary lookup failed, falling back to minimal output:', dictErr);
+      dictFailed = true;
+      formattedText = `word: ${lemma}\ncontext: ${context}`;
+    }
     
     // 4. Prepend System Prompt if Enabled
     const config = resolveConfig(currentDomain);
@@ -232,8 +237,11 @@ async function handleGenerate() {
 
     // 6. Copy to Clipboard
     await copyToClipboard(formattedText);
-    
-    showStatus('Copied to clipboard!', 'success');
+    if (dictFailed) {
+      showStatus('Dictionary failed; generated minimal output and copied.', 'error');
+    } else {
+      showStatus('Copied to clipboard!', 'success');
+    }
     elements.copyBtn.disabled = false;
   } catch (err) {
     console.error(err);
