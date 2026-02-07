@@ -128,3 +128,6 @@ package-extension.bat
 
 # Trae
 .trae/documents
+
+# Dev Resources
+dev-resources/
