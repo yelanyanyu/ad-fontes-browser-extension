@@ -1,4 +1,4 @@
-import nlp from 'compromise';
+import EnglishStrategy from './languages/EnglishStrategy.js';
 
 // DOM Elements - Lazy loaded to ensure safety
 const getElements = () => ({
@@ -6,6 +6,7 @@ const getElements = () => ({
   context: document.getElementById('context'),
   other: document.getElementById('other'),
   generateBtn: document.getElementById('generateBtn'),
+  directBtn: document.getElementById('directBtn'),
   copyBtn: document.getElementById('copyBtn'),
   status: document.getElementById('status'),
   loader: document.querySelector('.loader'),
@@ -25,6 +26,9 @@ let currentDomain = '';
 let prompts = [];
 let siteConfigs = {};
 let lastActivePromptId = null;
+
+// Strategy Pattern for Multi-language support
+const currentStrategy = new EnglishStrategy();
 
 const KNOWN_SITE_DEFAULTS = {
   'gemini.google.com': true,
@@ -134,6 +138,11 @@ function setupEventListeners() {
   if (!elements.word) return;
 
   elements.generateBtn.addEventListener('click', handleGenerate);
+  
+  if (elements.directBtn) {
+    elements.directBtn.addEventListener('click', handleDirectGenerate);
+  }
+
   elements.copyBtn.addEventListener('click', handleCopy);
 
   // Handle Enter key in word input
@@ -190,6 +199,18 @@ function saveToStorage() {
   });
 }
 
+// Apply Prompt Wrapper
+function applyPrompt(text, domain) {
+    const config = resolveConfig(domain);
+    if (config && config.enabled && config.promptId) {
+      const prompt = prompts.find(p => p.id === config.promptId);
+      if (prompt && prompt.content) {
+        return `${prompt.content}\n\n${text}`;
+      }
+    }
+    return text;
+}
+
 async function handleGenerate() {
   const elements = getElements();
   const word = elements.word.value.trim();
@@ -205,29 +226,25 @@ async function handleGenerate() {
   hideStatus();
 
   try {
-    // 1. Get Lemma (Root form)
-    const lemma = getLemma(word);
+    // 1. Get Lemma (Root form) using Strategy
+    const lemma = currentStrategy.getLemma(word);
     console.log(`【DEBUG】NLP Result - Original: "${word}", Lemma: "${lemma}"`);
 
     let formattedText = '';
     let dictFailed = false;
     try {
-      const definitions = await fetchDefinitions(lemma);
-      formattedText = formatOutput(lemma, context, definitions, other);
+      // 2. Fetch Definitions using Strategy
+      const definitions = await currentStrategy.fetchDefinitions(lemma);
+      // 3. Format Output using Strategy
+      formattedText = currentStrategy.formatOutput(lemma, context, definitions, other);
     } catch (dictErr) {
       console.warn('Dictionary lookup failed, falling back to minimal output:', dictErr);
       dictFailed = true;
-      formattedText = `word: ${lemma}\ncontext: ${context}`;
+      formattedText = `word: ${lemma}\ncontext: ${context}\nother_message: ${other}`;
     }
     
     // 4. Prepend System Prompt if Enabled
-    const config = resolveConfig(currentDomain);
-    if (config && config.enabled && config.promptId) {
-      const prompt = prompts.find(p => p.id === config.promptId);
-      if (prompt && prompt.content) {
-        formattedText = `${prompt.content}\n\n${formattedText}`;
-      }
-    }
+    formattedText = applyPrompt(formattedText, currentDomain);
 
     lastGeneratedText = formattedText;
 
@@ -251,6 +268,45 @@ async function handleGenerate() {
   }
 }
 
+async function handleDirectGenerate() {
+  const elements = getElements();
+  const word = elements.word.value.trim();
+  const context = elements.context.value.trim();
+  const other = elements.other.value.trim();
+  
+  if (!word) {
+    showStatus('Please enter a word', 'error');
+    return;
+  }
+
+  hideStatus();
+
+  try {
+    // 1. Get Lemma
+    const lemma = currentStrategy.getLemma(word);
+    
+    // 2. Format (Minimal)
+    let formattedText = `word: ${lemma}\ncontext: ${context}\nother_message: ${other}`;
+    
+    // 3. Prepend Prompt
+    formattedText = applyPrompt(formattedText, currentDomain);
+
+    lastGeneratedText = formattedText;
+
+    // 4. Preview & Copy
+    elements.preview.value = formattedText;
+    elements.previewContainer.classList.remove('hidden');
+    
+    await copyToClipboard(formattedText);
+    showStatus('Directly generated & copied!', 'success');
+    elements.copyBtn.disabled = false;
+
+  } catch (err) {
+    console.error(err);
+    showStatus('Failed to generate', 'error');
+  }
+}
+
 async function handleCopy() {
   if (!lastGeneratedText) return;
   try {
@@ -261,76 +317,6 @@ async function handleCopy() {
   }
 }
 
-function getLemma(text) {
-  try {
-    const doc = nlp(text);
-    doc.compute('root');
-    const json = doc.json();
-    
-    if (json && json[0] && json[0].terms && json[0].terms[0]) {
-      const term = json[0].terms[0];
-      return term.root || term.normal || text;
-    }
-    return text;
-  } catch (e) {
-    console.warn('NLP processing failed, using original text', e);
-    return text;
-  }
-}
-
-async function fetchDefinitions(word) {
-  try {
-    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`Word "${word}" not found in dictionary.`);
-      }
-      throw new Error(`API Error: ${response.statusText}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    throw error;
-  }
-}
-
-function formatOutput(lemma, userContext, apiData, otherMessage) {
-  const meaningsList = [];
-  
-  if (Array.isArray(apiData)) {
-    apiData.forEach(entry => {
-      if (entry.meanings) {
-        entry.meanings.forEach(m => {
-          const pos = m.partOfSpeech;
-          m.definitions.forEach(d => {
-            meaningsList.push(`[${pos}] ${d.definition}`);
-          });
-        });
-      }
-    });
-  }
-
-  const uniqueMeanings = [...new Set(meaningsList)];
-
-  let text = `word: ${lemma}\n`;
-  text += `context: ${userContext}\n`;
-  text += `meanings:\n`;
-  
-  if (uniqueMeanings.length > 0) {
-    uniqueMeanings.forEach(m => {
-      text += `- ${m}\n`;
-    });
-  } else {
-    text += `- No definitions found\n`;
-  }
-  
-  text += `other_message: ${otherMessage}`;
-
-  return text;
-}
-
 async function copyToClipboard(text) {
   await navigator.clipboard.writeText(text);
 }
@@ -339,10 +325,12 @@ function setLoading(isLoading) {
   const elements = getElements();
   if (isLoading) {
     elements.generateBtn.disabled = true;
+    if (elements.directBtn) elements.directBtn.disabled = true;
     elements.loader.classList.remove('hidden');
     elements.btnText.textContent = 'Processing...';
   } else {
     elements.generateBtn.disabled = false;
+    if (elements.directBtn) elements.directBtn.disabled = false;
     elements.loader.classList.add('hidden');
     elements.btnText.textContent = 'Generate & Copy';
   }
