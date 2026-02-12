@@ -274,26 +274,36 @@ async function handleDirectGenerate() {
   const context = elements.context.value.trim();
   const other = elements.other.value.trim();
   
-  if (!word) {
-    showStatus('Please enter a word', 'error');
-    return;
-  }
-
   hideStatus();
 
   try {
-    // 1. Get Lemma
-    const lemma = currentStrategy.getLemma(word);
+    const parts = [];
+
+    // 1. Get Lemma if word exists
+    if (word) {
+      const lemma = currentStrategy.getLemma(word);
+      parts.push(`word: ${lemma}`);
+    }
+
+    // 2. Add Context if exists
+    if (context) {
+      parts.push(`context: ${context}`);
+    }
+
+    // 3. Add Notes if exists
+    if (other) {
+      parts.push(`other_message: ${other}`);
+    }
     
-    // 2. Format (Minimal)
-    let formattedText = `word: ${lemma}\ncontext: ${context}\nother_message: ${other}`;
+    // Join parts
+    let formattedText = parts.join('\n');
     
-    // 3. Prepend Prompt
+    // 4. Prepend Prompt
     formattedText = applyPrompt(formattedText, currentDomain);
 
     lastGeneratedText = formattedText;
 
-    // 4. Preview & Copy
+    // 5. Preview & Copy
     elements.preview.value = formattedText;
     elements.previewContainer.classList.remove('hidden');
     
