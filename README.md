@@ -48,10 +48,9 @@
    ```bash
    npm install
    ```
-
-2. 构建插件：
+2. ·构建插件：
    ```bash
    npm run build
    ```
-
 3. 构建后的文件将输出到 `dist` 文件夹中。
+
